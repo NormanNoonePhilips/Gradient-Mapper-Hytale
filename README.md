@@ -14,9 +14,8 @@ A Python tool for applying gradient maps to images with parallel processing supp
 
 ## Requirements
 
-- Python 3.6 or higher
-- PIL/Pillow
-- NumPy
+- Python 3.10 or higher
+- uv (dependency manager)
 
 ## Installation
 
@@ -25,7 +24,13 @@ A Python tool for applying gradient maps to images with parallel processing supp
 2. Install required dependencies:
 
 ```bash
-pip install Pillow numpy
+uv sync
+```
+
+Run the CLI without activating a venv:
+
+```bash
+uv run python gradient_mapper.py [all] [all]
 ```
 
 ## Folder Structure
@@ -35,6 +40,11 @@ gradient_mapper/
 ├── LICENSE.md
 ├── README.md
 ├── gradient_mapper.py
+├── pyproject.toml
+├── Dockerfile
+├── docker-compose.yml
+├── lib/            # Shared core library
+├── web/            # FastAPI backend + static frontend
 ├── input/          # Place your source images here (subfolders supported)
 ├── gradient/       # Place your gradient maps here (subfolders supported)
 └── output/         # Generated images will be saved here
@@ -119,6 +129,35 @@ python gradient_mapper.py [all] [all] -o custom_output --prefix processed --suff
 
 ```bash
 python gradient_mapper.py image.png gradient.png --sequential
+```
+
+## Web UI (FastAPI)
+
+Run the web app with live reload:
+
+```bash
+uv run uvicorn web.backend.main:app --reload
+```
+
+Open `http://localhost:8000` in your browser.
+
+## Docker
+
+Build and run with Docker:
+
+```bash
+docker build -t gradient-mapper .
+docker run --rm -p 8000:8000 \
+  -v "$PWD/input:/app/input" \
+  -v "$PWD/gradient:/app/gradient" \
+  -v "$PWD/output:/app/output" \
+  gradient-mapper
+```
+
+Or use Docker Compose for development:
+
+```bash
+docker compose up --build
 ```
 
 ## How It Works

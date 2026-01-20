@@ -1,0 +1,160 @@
+/* Custom styles for Gradient Mapper */
+
+/* Drag and drop zone */
+.drop-zone {
+    transition: all 0.3s ease;
+}
+
+.drop-zone.dragover {
+    background-color: #EBF8FF;
+    border-color: #3B82F6;
+}
+
+/* Preview slider */
+.preview-slider-container {
+    position: relative;
+    overflow: hidden;
+    user-select: none;
+}
+
+.preview-slider {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 4px;
+    height: 100%;
+    background-color: #3B82F6;
+    cursor: ew-resize;
+    z-index: 10;
+}
+
+.preview-slider::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    background-color: #3B82F6;
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.preview-slider::after {
+    content: '⟷';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.preview-image-left {
+    clip-path: inset(0 50% 0 0);
+}
+
+/* Gradient thumbnail */
+.gradient-thumbnail {
+    height: 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.gradient-thumbnail:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.gradient-thumbnail.selected {
+    box-shadow: 0 0 0 3px #3B82F6;
+}
+
+/* Queue item */
+.queue-item {
+    transition: all 0.2s ease;
+}
+
+.queue-item:hover {
+    background-color: #F9FAFB;
+}
+
+/* Progress bar */
+.progress-bar {
+    transition: width 0.3s ease;
+}
+
+/* Scrollbar styling */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #F3F4F6;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #9CA3AF;
+    border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #6B7280;
+}
+
+/* Loading spinner */
+.spinner {
+    border: 3px solid #F3F4F6;
+    border-top: 3px solid #3B82F6;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Button groups */
+.btn-group {
+    display: inline-flex;
+    border-radius: 0.375rem;
+    overflow: hidden;
+}
+
+.btn-group button {
+    padding: 0.5rem 1rem;
+    border: 1px solid #D1D5DB;
+    background-color: white;
+    color: #374151;
+    transition: all 0.2s ease;
+}
+
+.btn-group button:not(:last-child) {
+    border-right: none;
+}
+
+.btn-group button:hover {
+    background-color: #F9FAFB;
+}
+
+.btn-group button.active {
+    background-color: #3B82F6;
+    color: white;
+    border-color: #3B82F6;
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease;
+}

@@ -1,0 +1,15 @@
+[project]
+name = "gradient-mapper"
+version = "1.0.0"
+description = "Apply gradient maps to images with a FastAPI web UI."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "fastapi>=0.104.1",
+  "uvicorn[standard]>=0.24.0",
+  "python-multipart>=0.0.6",
+  "Pillow>=10.1.0",
+  "numpy>=1.26.2",
+  "aiofiles>=23.2.1",
+  "websockets>=12.0",
+]

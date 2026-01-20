@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gradient Mapper</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body class="bg-gray-50">
+    <div id="app" class="min-h-screen">
+        <header class="bg-white shadow-sm border-b border-gray-200">
+            <div class="container mx-auto px-4 py-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-900">Gradient Mapper</h1>
+                        <p class="text-gray-600 mt-1">Apply gradient maps to your images with real-time preview</p>
+                    </div>
+                    <div id="status-indicator" class="text-sm text-gray-500">
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="container mx-auto px-4 py-8">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                <div class="lg:col-span-1 space-y-6">
+                    <section id="upload-section" class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                    </section>
+
+                    <section id="gradient-section" class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                    </section>
+                </div>
+
+                <div class="lg:col-span-2 space-y-6">
+                    <section id="preview-section" class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                    </section>
+
+                    <section id="queue-section" class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                    </section>
+
+                    <section id="progress-section" class="bg-white rounded-lg shadow-sm p-6 border border-gray-200" style="display: none;">
+                    </section>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/static/js/app.js"></script>
+</body>
+</html>
