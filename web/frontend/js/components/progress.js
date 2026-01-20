@@ -88,11 +88,12 @@ export class ProgressTracker {
 
         const isCompleted = this.currentJob.status === 'completed';
         const isFailed = this.currentJob.status === 'failed';
+        const isCancelled = this.currentJob.status === 'cancelled';
 
         const html = `
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-semibold text-gray-900">
-                    ${isCompleted ? 'Processing Complete' : isFailed ? 'Processing Failed' : 'Processing...'}
+                    ${isCompleted ? 'Processing Complete' : isFailed ? 'Processing Failed' : isCancelled ? 'Processing Cancelled' : 'Processing...'}
                 </h2>
                 <button id="close-progress-btn" class="text-gray-500 hover:text-gray-700">
                     <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -107,7 +108,7 @@ export class ProgressTracker {
                     <span>${percentage}%</span>
                 </div>
                 <div class="w-full h-4 bg-gray-200 rounded-full overflow-hidden">
-                    <div class="progress-bar h-full ${isFailed ? 'bg-red-500' : isCompleted ? 'bg-green-500' : 'bg-blue-500'}"
+                    <div class="progress-bar h-full ${isFailed ? 'bg-red-500' : isCompleted ? 'bg-green-500' : isCancelled ? 'bg-yellow-500' : 'bg-blue-500'}"
                         style="width: ${percentage}%">
                     </div>
                 </div>
@@ -115,7 +116,7 @@ export class ProgressTracker {
 
             <div class="mb-4">
                 <p class="text-sm text-gray-700">
-                    ${isCompleted ? '✓' : isFailed ? '✗' : '⋯'} ${escapeHtml(this.currentJob.message)}
+                    ${isCompleted ? '✓' : isFailed ? '✗' : isCancelled ? '•' : '⋯'} ${escapeHtml(this.currentJob.message)}
                 </p>
             </div>
 
@@ -140,6 +141,16 @@ export class ProgressTracker {
 
         this.container.innerHTML = html;
         this.attachListeners();
+    }
+
+    cancelled(data) {
+        if (!this.currentJob || data.job_id !== this.currentJob.job_id) {
+            return;
+        }
+
+        this.currentJob.status = 'cancelled';
+        this.currentJob.message = data.message || 'Cancelled';
+        this.render();
     }
 
     attachListeners() {

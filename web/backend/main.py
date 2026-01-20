@@ -1,5 +1,7 @@
 """FastAPI main application"""
 import logging
+import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -19,22 +21,6 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# Create FastAPI app
-app = FastAPI(
-    title="Gradient Mapper Web UI",
-    description="Apply gradient maps to images with real-time preview and batch processing",
-    version="1.0.0"
-)
-
-# CORS middleware for development
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins in development
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # Folder paths
 BASE_DIR = Path(__file__).parent.parent.parent
 INPUT_FOLDER = BASE_DIR / "input"
@@ -51,10 +37,26 @@ OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
 gradient_scanner = GradientScanner(GRADIENT_FOLDER)
 job_queue = JobQueue(INPUT_FOLDER, GRADIENT_FOLDER, OUTPUT_FOLDER)
 
+def _parse_bool(value: str | None, default: bool = False) -> bool:
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize services on startup"""
+
+def _parse_origins(value: str) -> list[str]:
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+cors_origins = _parse_origins(
+    os.getenv("CORS_ALLOW_ORIGINS", "http://localhost:8000,http://127.0.0.1:8000")
+)
+cors_allow_credentials = _parse_bool(os.getenv("CORS_ALLOW_CREDENTIALS"), False)
+if "*" in cors_origins:
+    cors_allow_credentials = False
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     logger.info("Starting Gradient Mapper Web UI...")
     logger.info(f"Base directory: {BASE_DIR}")
     logger.info(f"Input folder: {INPUT_FOLDER}")
@@ -62,28 +64,36 @@ async def startup_event():
     logger.info(f"Output folder: {OUTPUT_FOLDER}")
     logger.info(f"Frontend directory: {FRONTEND_DIR}")
 
-    # Scan gradients
     gradient_scanner.initialize()
-
-    # Set dependencies in routes
     routes.set_dependencies(
         gradient_scanner,
         job_queue,
         INPUT_FOLDER,
         OUTPUT_FOLDER
     )
-
-    # Set dependencies in websocket
     websocket.set_job_queue(job_queue)
 
     logger.info("Gradient Mapper Web UI started successfully")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown"""
+    yield
     logger.info("Shutting down Gradient Mapper Web UI...")
 
+
+# Create FastAPI app
+app = FastAPI(
+    title="Gradient Mapper Web UI",
+    description="Apply gradient maps to images with real-time preview and batch processing",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_credentials=cors_allow_credentials,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Include routers
 app.include_router(routes.router)

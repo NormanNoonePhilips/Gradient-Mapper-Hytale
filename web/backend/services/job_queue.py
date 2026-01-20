@@ -39,6 +39,7 @@ class Job:
     completed_at: Optional[str] = None
     error_count: int = 0
     output_files: list[Path] = field(default_factory=list)
+    cancel_requested: bool = False
 
 
 class JobQueue:
@@ -145,6 +146,12 @@ class JobQueue:
             return
 
         try:
+            if job.cancel_requested:
+                job.status = "cancelled"
+                job.completed_at = datetime.now().isoformat()
+                await self._broadcast_cancelled(job_id)
+                return
+
             job.status = "processing"
             await self._broadcast_progress(job_id, "Job started")
 
@@ -164,11 +171,18 @@ class JobQueue:
                 lambda: self._batch_processor.process_batch(
                     job.tasks,
                     progress_callback=progress_callback,
-                    use_parallel=True
+                    use_parallel=True,
+                    cancel_check=lambda: job.cancel_requested
                 )
             )
 
             # Update job status
+            if job.cancel_requested:
+                job.status = "cancelled"
+                job.completed_at = datetime.now().isoformat()
+                await self._broadcast_cancelled(job_id)
+                return
+
             job.error_count = failed_count
             if failed_count == len(job.tasks):
                 job.status = "failed"
@@ -200,6 +214,8 @@ class JobQueue:
         if job_id in self.progress_callbacks:
             job = self.jobs.get(job_id)
             if job:
+                if job.cancel_requested:
+                    return
                 for callback in self.progress_callbacks[job_id]:
                     try:
                         await callback({
@@ -229,6 +245,18 @@ class JobQueue:
                     })
                 except Exception as e:
                     logger.error(f"Error in complete callback: {e}")
+
+    async def _broadcast_cancelled(self, job_id: str):
+        if job_id in self.progress_callbacks:
+            for callback in self.progress_callbacks[job_id]:
+                try:
+                    await callback({
+                        "type": "cancelled",
+                        "job_id": job_id,
+                        "message": "Cancelled"
+                    })
+                except Exception as e:
+                    logger.error(f"Error in cancelled callback: {e}")
 
     async def _broadcast_error(self, job_id: str, error_message: str):
         """Broadcast job error
@@ -316,7 +344,7 @@ class JobQueue:
         # Return only files that actually exist
         return [f for f in job.output_files if f.exists()]
 
-    def cancel_job(self, job_id: str) -> bool:
+    async def cancel_job(self, job_id: str) -> bool:
         """Cancel a running job
 
         Args:
@@ -332,9 +360,12 @@ class JobQueue:
         if job.status in ["completed", "failed", "cancelled"]:
             return False
 
+        job.cancel_requested = True
         job.status = "cancelled"
         job.completed_at = datetime.now().isoformat()
 
         logger.info(f"Job {job_id} cancelled")
+
+        await self._broadcast_cancelled(job_id)
 
         return True

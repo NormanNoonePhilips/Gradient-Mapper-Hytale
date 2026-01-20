@@ -83,6 +83,10 @@ class GradientMapperApp {
         this.ws.on('error', (data) => {
             this.progress.error(data);
         });
+
+        this.ws.on('cancelled', (data) => {
+            this.progress.cancelled(data);
+        });
     }
 
     updatePreview() {

@@ -50,7 +50,8 @@ class BatchProcessor:
         self,
         tasks: List[ProcessingTask],
         progress_callback: Optional[Callable[[int, int, str], None]] = None,
-        use_parallel: bool = True
+        use_parallel: bool = True,
+        cancel_check: Optional[Callable[[], bool]] = None
     ) -> Tuple[int, int, List[str]]:
         """Process multiple tasks
 
@@ -67,9 +68,14 @@ class BatchProcessor:
         error_messages = []
         total = len(tasks)
 
+        if cancel_check and cancel_check():
+            return successful_count, failed_count, error_messages
+
         if not use_parallel or self.max_workers == 1:
             # Sequential processing
             for i, task in enumerate(tasks, 1):
+                if cancel_check and cancel_check():
+                    break
                 success, message = self.process_single(task)
 
                 if progress_callback:
@@ -83,16 +89,19 @@ class BatchProcessor:
 
         else:
             # Parallel processing
-            with ProcessPoolExecutor(max_workers=self.max_workers) as executor:
-                # Submit all tasks
-                futures = {
-                    executor.submit(self._process_task_wrapper, task): task
-                    for task in tasks
-                }
+            executor = ProcessPoolExecutor(max_workers=self.max_workers)
+            futures = {
+                executor.submit(self._process_task_wrapper, task): task
+                for task in tasks
+            }
 
-                # Process completed tasks
-                completed = 0
+            completed = 0
+            cancelled = False
+            try:
                 for future in as_completed(futures):
+                    if cancel_check and cancel_check():
+                        cancelled = True
+                        break
                     completed += 1
                     success, message = future.result()
 
@@ -104,6 +113,16 @@ class BatchProcessor:
                     else:
                         failed_count += 1
                         error_messages.append(message)
+            finally:
+                if cancel_check and cancel_check():
+                    cancelled = True
+                if cancelled:
+                    for future in futures:
+                        if not future.done():
+                            future.cancel()
+                    executor.shutdown(wait=False, cancel_futures=True)
+                else:
+                    executor.shutdown()
 
         return successful_count, failed_count, error_messages
 

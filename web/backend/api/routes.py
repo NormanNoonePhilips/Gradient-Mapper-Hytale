@@ -3,7 +3,7 @@ import logging
 from pathlib import Path, PurePath
 from typing import List
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from lib.files import get_image_files
@@ -263,7 +263,7 @@ async def get_job_status(job_id: str):
 
 
 @router.get("/jobs/{job_id}/download")
-async def download_job_results(job_id: str):
+async def download_job_results(job_id: str, background_tasks: BackgroundTasks):
     """Download job results as ZIP file"""
     if job_queue is None:
         raise HTTPException(status_code=500, detail="Job queue not configured")
@@ -286,11 +286,14 @@ async def download_job_results(job_id: str):
         from ..services.zip_service import ZipService
         zip_path = ZipService.create_job_archive(job_id, output_files)
 
+        background_tasks.add_task(zip_path.unlink, missing_ok=True)
+
         # Return ZIP file
         return FileResponse(
             zip_path,
             media_type="application/zip",
-            filename=f"gradient_mapper_{job_id[:8]}.zip"
+            filename=f"gradient_mapper_{job_id[:8]}.zip",
+            background=background_tasks
         )
 
     except Exception as e:
@@ -304,7 +307,7 @@ async def cancel_job(job_id: str):
     if job_queue is None:
         raise HTTPException(status_code=500, detail="Job queue not configured")
 
-    success = job_queue.cancel_job(job_id)
+    success = await job_queue.cancel_job(job_id)
     if not success:
         raise HTTPException(status_code=400, detail="Job cannot be cancelled")
 
