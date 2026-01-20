@@ -13,7 +13,6 @@ import numpy as np
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from multiprocessing import cpu_count
 
-
 # Folder paths
 SCRIPT_DIR = Path(__file__).parent
 INPUT_FOLDER = SCRIPT_DIR / "input"
@@ -26,9 +25,11 @@ def create_output_folder(output_path):
     output_path.mkdir(parents=True, exist_ok=True)
 
 
-def apply_gradient_map(
-    base_image_path, gradient_map_path, output_path, quality=95, output_format="PNG"
-):
+def apply_gradient_map(base_image_path,
+                       gradient_map_path,
+                       output_path,
+                       quality=95,
+                       output_format="PNG"):
     """Apply a gradient map to a base image"""
     try:
         # Load images
@@ -47,9 +48,8 @@ def apply_gradient_map(
         alpha = base_array[:, :, 3]
 
         # Calculate luminance (grayscale value) using standard weights
-        luminance = (
-            rgb[:, :, 0] * 0.299 + rgb[:, :, 1] * 0.587 + rgb[:, :, 2] * 0.114
-        ).astype(np.uint8)
+        luminance = (rgb[:, :, 0] * 0.299 + rgb[:, :, 1] * 0.587 +
+                     rgb[:, :, 2] * 0.114).astype(np.uint8)
 
         # Apply gradient map by using luminance as index
         output_rgb = gradient_array[luminance]
@@ -84,9 +84,8 @@ def apply_gradient_map(
 def process_single_combination(args):
     """Process a single image-gradient combination (for parallel processing)"""
     base_image_path, gradient_map_path, output_path, quality, output_format = args
-    return apply_gradient_map(
-        base_image_path, gradient_map_path, output_path, quality, output_format
-    )
+    return apply_gradient_map(base_image_path, gradient_map_path, output_path,
+                              quality, output_format)
 
 
 def get_image_files(folder, extensions=(".png", ".jpg", ".jpeg", ".webp")):
@@ -116,7 +115,8 @@ def process_images(input_arg, gradient_arg, args):
     else:
         input_path = INPUT_FOLDER / input_arg
         if not input_path.exists():
-            print(f'Error: Input file "{input_arg}" not found in input folder!')
+            print(
+                f'Error: Input file "{input_arg}" not found in input folder!')
             return
         base_images = [input_arg]
 
@@ -163,15 +163,13 @@ def process_images(input_arg, gradient_arg, args):
             gradient_map_path = GRADIENT_FOLDER / gradient_map
             output_path = output_folder / output_name
 
-            tasks.append(
-                (
-                    base_image_path,
-                    gradient_map_path,
-                    output_path,
-                    args.quality,
-                    args.format,
-                )
-            )
+            tasks.append((
+                base_image_path,
+                gradient_map_path,
+                output_path,
+                args.quality,
+                args.format,
+            ))
 
     # Process with parallel execution
     processed_count = 0
@@ -225,13 +223,16 @@ Examples:
     )
 
     # Positional arguments
-    parser.add_argument("input", help="Input image filename or [all] for all images")
-    parser.add_argument("gradient", help="Gradient filename or [all] for all gradients")
+    parser.add_argument("input",
+                        help="Input image filename or [all] for all images")
+    parser.add_argument("gradient",
+                        help="Gradient filename or [all] for all gradients")
 
     # Optional arguments
-    parser.add_argument(
-        "-o", "--output", help="Output folder path (default: ./output)", default=None
-    )
+    parser.add_argument("-o",
+                        "--output",
+                        help="Output folder path (default: ./output)",
+                        default=None)
     parser.add_argument(
         "-f",
         "--format",
@@ -253,8 +254,12 @@ Examples:
         default=None,
         help=f"Number of parallel workers (default: {cpu_count()})",
     )
-    parser.add_argument("--prefix", help="Prefix for output filenames", default=None)
-    parser.add_argument("--suffix", help="Suffix for output filenames", default=None)
+    parser.add_argument("--prefix",
+                        help="Prefix for output filenames",
+                        default=None)
+    parser.add_argument("--suffix",
+                        help="Suffix for output filenames",
+                        default=None)
     parser.add_argument(
         "--sequential",
         action="store_true",
