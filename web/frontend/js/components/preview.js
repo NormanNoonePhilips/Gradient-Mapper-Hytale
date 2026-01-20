@@ -13,6 +13,11 @@ export class PreviewComponent {
         this.currentGradient = null;
         this.originalImageUrl = null;
         this.isGenerating = false;
+        this.gridPreviews = [];
+        this.gridLoading = false;
+        this.gridError = null;
+        this.gradientCatalog = null;
+        this.gridLimit = 9;
         this.sliderHandlers = null;
         this.render();
     }
@@ -39,7 +44,7 @@ export class PreviewComponent {
                 ${this.renderContent()}
             </div>
 
-            ${this.previewData ? `
+            ${this.currentImage && this.currentGradient ? `
                 <button id="add-to-queue-btn"
                     class="mt-4 w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition">
                     Add to Queue
@@ -52,6 +57,10 @@ export class PreviewComponent {
     }
 
     renderContent() {
+        if (this.mode === 'grid') {
+            return this.renderGrid();
+        }
+
         if (this.isGenerating) {
             return `
                 <div class="flex flex-col items-center justify-center h-64">
@@ -77,8 +86,6 @@ export class PreviewComponent {
                 return this.renderSideBySide();
             case 'slider':
                 return this.renderSlider();
-            case 'grid':
-                return this.renderGrid();
             default:
                 return '';
         }
@@ -143,10 +150,67 @@ export class PreviewComponent {
     }
 
     renderGrid() {
+        if (!this.currentImage || !this.currentGradient) {
+            return `
+                <div class="flex flex-col items-center justify-center h-64 text-gray-500">
+                    <svg class="h-16 w-16 mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p>Select an image and gradient to preview</p>
+                </div>
+            `;
+        }
+
+        if (this.gridLoading) {
+            return `
+                <div class="flex flex-col items-center justify-center h-64">
+                    <div class="spinner"></div>
+                    <p class="mt-4 text-gray-600">Building grid...</p>
+                </div>
+            `;
+        }
+
+        if (this.gridError) {
+            return `
+                <div class="flex flex-col items-center justify-center h-64 text-red-500">
+                    <svg class="h-16 w-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p>${this.gridError}</p>
+                </div>
+            `;
+        }
+
+        if (!this.gridPreviews.length) {
+            return `
+                <div class="flex flex-col items-center justify-center h-64 text-gray-500">
+                    <p>No previews available</p>
+                </div>
+            `;
+        }
+
         return `
-            <div class="text-center py-8 text-gray-500">
-                <p>Grid view coming soon...</p>
-                <p class="text-sm mt-2">Will show multiple gradient variations</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                ${this.gridPreviews.map(item => {
+                    const isSelected = this.currentGradient
+                        && item.gradient.relative_path === this.currentGradient.path;
+                    return `
+                        <button
+                            class="group text-left border rounded-lg overflow-hidden ${isSelected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200 hover:border-gray-300'}"
+                            data-grid-gradient="true"
+                            data-gradient-path="${item.gradient.relative_path}"
+                            data-gradient-name="${item.gradient.name}">
+                            <div class="bg-gray-100 px-3 py-2 text-xs font-medium text-gray-700 truncate">
+                                ${item.gradient.name}
+                            </div>
+                            <div class="p-2 bg-white">
+                                <img src="${item.preview.preview_image}"
+                                    alt="${item.gradient.name}"
+                                    class="w-full h-auto">
+                            </div>
+                        </button>
+                    `;
+                }).join('')}
             </div>
         `;
     }
@@ -157,7 +221,9 @@ export class PreviewComponent {
                 this.mode = btn.dataset.mode;
                 this.render();
 
-                if (this.mode === 'slider' && this.previewData) {
+                if (this.currentImage && this.currentGradient) {
+                    this.updatePreview(this.currentImage, this.currentGradient);
+                } else if (this.mode === 'slider' && this.previewData) {
                     this.enableSlider();
                 }
             });
@@ -173,6 +239,15 @@ export class PreviewComponent {
         if (this.mode === 'slider' && this.previewData) {
             this.enableSlider();
         }
+
+        this.container.querySelectorAll('[data-grid-gradient="true"]').forEach(item => {
+            item.addEventListener('click', () => {
+                this.selectGridGradient(
+                    item.dataset.gradientPath,
+                    item.dataset.gradientName
+                );
+            });
+        });
     }
 
     enableSlider() {
@@ -267,6 +342,13 @@ export class PreviewComponent {
     async updatePreview(imageName, gradientData) {
         this.currentImage = imageName;
         this.currentGradient = gradientData;
+        if (this.mode === 'grid') {
+            this.previewData = null;
+            this.isGenerating = false;
+            await this.updateGridPreviews();
+            return;
+        }
+
         this.isGenerating = true;
         this.previewData = null;
         this.render();
@@ -290,6 +372,115 @@ export class PreviewComponent {
             this.render();
             this.showError(`Failed to generate preview: ${error.message}`);
         }
+    }
+
+    async updateGridPreviews() {
+        if (!this.currentImage) {
+            this.gridPreviews = [];
+            this.gridError = null;
+            this.gridLoading = false;
+            this.render();
+            return;
+        }
+
+        this.gridLoading = true;
+        this.gridError = null;
+        this.render();
+
+        try {
+            const catalog = await this.ensureGradientCatalog();
+            const gradients = this.getGradientsForGrid(catalog);
+
+            if (!gradients.length) {
+                this.gridPreviews = [];
+                this.gridError = 'No gradients available';
+                this.gridLoading = false;
+                this.render();
+                return;
+            }
+
+            const results = await Promise.allSettled(
+                gradients.map(gradient =>
+                    api.generatePreview(this.currentImage, gradient.relative_path, 300)
+                )
+            );
+
+            this.gridPreviews = results
+                .map((result, index) => {
+                    if (result.status !== 'fulfilled') return null;
+                    return {
+                        gradient: gradients[index],
+                        preview: result.value
+                    };
+                })
+                .filter(Boolean);
+
+            if (!this.gridPreviews.length) {
+                this.gridError = 'No previews available';
+            }
+        } catch (error) {
+            this.gridPreviews = [];
+            this.gridError = error.message || 'Failed to load previews';
+        } finally {
+            this.gridLoading = false;
+            this.render();
+        }
+    }
+
+    async ensureGradientCatalog() {
+        if (this.gradientCatalog) {
+            return this.gradientCatalog;
+        }
+
+        this.gradientCatalog = await api.listGradients();
+        return this.gradientCatalog;
+    }
+
+    getGradientsForGrid(catalog) {
+        const selectedPath = this.currentGradient?.path;
+        const category = this.getCategoryFromPath(selectedPath);
+        let gradients = [];
+
+        if (category && catalog.categories[category]) {
+            gradients = catalog.categories[category];
+        } else {
+            Object.values(catalog.categories).forEach(categoryGradients => {
+                gradients.push(...categoryGradients);
+            });
+        }
+
+        if (selectedPath) {
+            const selected = gradients.find(
+                gradient => gradient.relative_path === selectedPath
+            );
+            if (selected) {
+                gradients = [
+                    selected,
+                    ...gradients.filter(
+                        gradient => gradient.relative_path !== selectedPath
+                    )
+                ];
+            }
+        }
+
+        return gradients.slice(0, this.gridLimit);
+    }
+
+    getCategoryFromPath(path) {
+        if (!path) return null;
+        const parts = path.split('/');
+        if (parts.length > 1) {
+            return parts[0];
+        }
+        return 'Uncategorized';
+    }
+
+    selectGridGradient(gradientPath, gradientName) {
+        const selection = { path: gradientPath, name: gradientName };
+        this.currentGradient = selection;
+        document.dispatchEvent(new CustomEvent('gradient-selected', {
+            detail: selection
+        }));
     }
 
     addToQueue() {
