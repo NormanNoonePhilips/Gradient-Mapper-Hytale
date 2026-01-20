@@ -13,6 +13,20 @@ from ..models.schemas import JobRequest, JobStatus
 logger = logging.getLogger(__name__)
 
 
+def _resolve_within(base: Path, relative_path: str) -> Path:
+    base_resolved = base.resolve()
+    candidate = (base / relative_path).resolve()
+    try:
+        candidate.relative_to(base_resolved)
+    except ValueError as exc:
+        raise ValueError(f"Invalid path: {relative_path}") from exc
+    return candidate
+
+
+def _safe_output_name(name: str) -> str:
+    return Path(name).name
+
+
 @dataclass
 class Job:
     """Represents a batch processing job"""
@@ -65,10 +79,14 @@ class JobQueue:
 
         for task_req in job_request.tasks:
             # Build input path
-            input_path = self.input_folder / task_req.image_name
+            input_path = _resolve_within(self.input_folder, task_req.image_name)
+            if not input_path.exists():
+                raise ValueError(f"Input image not found: {task_req.image_name}")
 
             # Build gradient path (could be relative)
-            gradient_path = self.gradient_folder / task_req.gradient_path
+            gradient_path = _resolve_within(self.gradient_folder, task_req.gradient_path)
+            if not gradient_path.exists():
+                raise ValueError(f"Gradient not found: {task_req.gradient_path}")
 
             # Build output filename
             base_name = Path(task_req.image_name).stem
@@ -83,6 +101,7 @@ class JobQueue:
                 output_name = f"{output_name}_{job_request.suffix}"
 
             output_name = f"{output_name}.{job_request.output_format}"
+            output_name = _safe_output_name(output_name)
             output_path = self.output_folder / output_name
 
             # Create task

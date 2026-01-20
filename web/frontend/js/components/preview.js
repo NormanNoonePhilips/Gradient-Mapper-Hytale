@@ -3,6 +3,7 @@
  */
 
 import { api } from '../api.js';
+import { escapeHtml } from '../utils/escape.js';
 
 export class PreviewComponent {
     constructor(selector) {
@@ -99,7 +100,7 @@ export class PreviewComponent {
                         Original
                     </div>
                     <div class="p-2 bg-white">
-                        <img src="${this.originalImageUrl}"
+                        <img src="${escapeHtml(this.originalImageUrl)}"
                             alt="Original"
                             class="w-full h-auto">
                     </div>
@@ -109,7 +110,7 @@ export class PreviewComponent {
                         With Gradient
                     </div>
                     <div class="p-2 bg-white">
-                        <img src="${this.previewData.preview_image}"
+                        <img src="${escapeHtml(this.previewData.preview_image)}"
                             alt="Preview"
                             class="w-full h-auto">
                     </div>
@@ -130,10 +131,10 @@ export class PreviewComponent {
                 </div>
                 <div class="p-2 bg-white">
                     <div id="slider-container" class="preview-slider-container relative">
-                        <img src="${this.previewData.preview_image}"
+                        <img src="${escapeHtml(this.previewData.preview_image)}"
                             alt="Preview"
                             class="w-full h-auto">
-                        <img src="${this.originalImageUrl}"
+                        <img src="${escapeHtml(this.originalImageUrl)}"
                             alt="Original"
                             id="slider-original"
                             class="w-full h-auto absolute top-0 left-0"
@@ -176,7 +177,7 @@ export class PreviewComponent {
                     <svg class="h-16 w-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <p>${this.gridError}</p>
+                    <p>${escapeHtml(this.gridError)}</p>
                 </div>
             `;
         }
@@ -198,14 +199,14 @@ export class PreviewComponent {
                         <button
                             class="group text-left border rounded-lg overflow-hidden ${isSelected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200 hover:border-gray-300'}"
                             data-grid-gradient="true"
-                            data-gradient-path="${item.gradient.relative_path}"
-                            data-gradient-name="${item.gradient.name}">
+                            data-gradient-path="${escapeHtml(item.gradient.relative_path)}"
+                            data-gradient-name="${escapeHtml(item.gradient.name)}">
                             <div class="bg-gray-100 px-3 py-2 text-xs font-medium text-gray-700 truncate">
-                                ${item.gradient.name}
+                                ${escapeHtml(item.gradient.name)}
                             </div>
                             <div class="p-2 bg-white">
-                                <img src="${item.preview.preview_image}"
-                                    alt="${item.gradient.name}"
+                                <img src="${escapeHtml(item.preview.preview_image)}"
+                                    alt="${escapeHtml(item.gradient.name)}"
                                     class="w-full h-auto">
                             </div>
                         </button>
@@ -363,7 +364,7 @@ export class PreviewComponent {
         this.render();
 
         try {
-            this.originalImageUrl = `/api/images/${imageName}`;
+            this.originalImageUrl = `/api/images/${this.encodePath(imageName)}`;
 
             const preview = await api.generatePreview(imageName, gradientData.path);
 
@@ -492,6 +493,10 @@ export class PreviewComponent {
         }));
     }
 
+    encodePath(value) {
+        return value.split('/').map(encodeURIComponent).join('/');
+    }
+
     addToQueue() {
         if (!this.currentImage || !this.currentGradient) return;
 
@@ -511,7 +516,7 @@ export class PreviewComponent {
                     <svg class="h-16 w-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <p>${message}</p>
+                    <p>${escapeHtml(message)}</p>
                 </div>
             `;
         }

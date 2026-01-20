@@ -3,6 +3,7 @@
  */
 
 import { api } from '../api.js';
+import { escapeHtml } from '../utils/escape.js';
 
 export class QueueComponent {
     constructor(selector) {
@@ -81,10 +82,10 @@ export class QueueComponent {
                         data-index="${index}">
                         <div class="flex-1 min-w-0">
                             <p class="text-sm font-medium text-gray-900 truncate">
-                                ${this.getImageName(item.image_name)}
+                                ${escapeHtml(this.getImageName(item.image_name))}
                             </p>
                             <p class="text-xs text-gray-500 truncate">
-                                → ${this.getGradientName(item.gradient_path)}
+                                → ${escapeHtml(this.getGradientName(item.gradient_path))}
                             </p>
                         </div>
                         <button class="remove-item-btn ml-2 text-red-500 hover:text-red-700"

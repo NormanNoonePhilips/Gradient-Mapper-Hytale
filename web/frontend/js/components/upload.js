@@ -3,6 +3,7 @@
  */
 
 import { api } from '../api.js';
+import { escapeHtml } from '../utils/escape.js';
 
 export class UploadComponent {
     constructor(selector) {
@@ -120,12 +121,12 @@ export class UploadComponent {
             const isPrimary = file.filename === this.selectedImage;
             return `
                 <div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer ${isSelected ? 'bg-blue-50 border-l-4 border-blue-500' : ''}"
-                    data-filename="${file.filename}">
+                    data-filename="${escapeHtml(file.filename)}">
                     <div class="flex items-center gap-2 flex-1 min-w-0">
                         <input type="checkbox" class="h-4 w-4 text-blue-600"
-                            data-filename="${file.filename}" ${isSelected ? 'checked' : ''}>
+                            data-filename="${escapeHtml(file.filename)}" ${isSelected ? 'checked' : ''}>
                         <div class="flex-1 min-w-0">
-                            <p class="text-sm font-medium text-gray-900 truncate">${file.filename}</p>
+                            <p class="text-sm font-medium text-gray-900 truncate">${escapeHtml(file.filename)}</p>
                             <p class="text-xs text-gray-500">${this.formatFileSize(file.size)} • ${file.dimensions[0]}×${file.dimensions[1]}</p>
                         </div>
                     </div>

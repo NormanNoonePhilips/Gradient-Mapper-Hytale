@@ -2,6 +2,8 @@
  * Progress tracker component for batch processing jobs
  */
 
+import { escapeHtml } from '../utils/escape.js';
+
 export class ProgressTracker {
     constructor(selector) {
         this.container = document.querySelector(selector);
@@ -113,7 +115,7 @@ export class ProgressTracker {
 
             <div class="mb-4">
                 <p class="text-sm text-gray-700">
-                    ${isCompleted ? '✓' : isFailed ? '✗' : '⋯'} ${this.currentJob.message}
+                    ${isCompleted ? '✓' : isFailed ? '✗' : '⋯'} ${escapeHtml(this.currentJob.message)}
                 </p>
             </div>
 

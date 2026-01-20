@@ -1,5 +1,6 @@
 """REST API routes"""
 import logging
+from pathlib import Path, PurePath
 from typing import List
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
@@ -40,6 +41,21 @@ def set_dependencies(scanner, queue, inp_folder, out_folder):
     output_folder = out_folder
 
 
+def sanitize_filename(filename: str) -> str:
+    normalized = filename.replace("\\", "/")
+    return PurePath(normalized).name
+
+
+def resolve_path(base: Path, relative_path: str) -> Path:
+    base_resolved = base.resolve()
+    candidate = (base / relative_path).resolve()
+    try:
+        candidate.relative_to(base_resolved)
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail="Access denied") from exc
+    return candidate
+
+
 @router.get("/gradients", response_model=GradientCatalog)
 async def list_gradients():
     """List all available gradients organized by category"""
@@ -71,8 +87,12 @@ async def upload_images(files: List[UploadFile] = File(...)):
             logger.warning(f"Skipping non-image file: {file.filename}")
             continue
 
-        # Save file
-        file_path = input_folder / file.filename
+        safe_filename = sanitize_filename(file.filename)
+        if not safe_filename or safe_filename.startswith("."):
+            logger.warning(f"Skipping invalid filename: {file.filename}")
+            continue
+
+        file_path = input_folder / safe_filename
         content = await file.read()
 
         with open(file_path, "wb") as f:
@@ -82,14 +102,14 @@ async def upload_images(files: List[UploadFile] = File(...)):
         try:
             dimensions = get_image_dimensions(file_path)
             file_info = ImageInfo(
-                filename=file.filename,
+                filename=safe_filename,
                 size=len(content),
                 dimensions=dimensions
             )
             uploaded_files.append(file_info)
-            logger.info(f"Uploaded {file.filename} ({len(content)} bytes)")
+            logger.info(f"Uploaded {safe_filename} ({len(content)} bytes)")
         except Exception as e:
-            logger.error(f"Error processing {file.filename}: {e}")
+            logger.error(f"Error processing {safe_filename}: {e}")
             # Delete invalid file
             file_path.unlink(missing_ok=True)
 
@@ -144,8 +164,8 @@ async def get_image(image_path: str):
     if input_folder is None:
         raise HTTPException(status_code=500, detail="Input folder not configured")
 
-    file_path = input_folder / image_path
-    if not file_path.exists():
+    file_path = resolve_path(input_folder, image_path)
+    if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail=f"Image not found: {image_path}")
 
     return FileResponse(file_path)
@@ -159,7 +179,7 @@ async def generate_preview(request: PreviewRequest):
 
     try:
         # Get image path
-        image_path = input_folder / request.image_name
+        image_path = resolve_path(input_folder, request.image_name)
         if not image_path.exists():
             raise HTTPException(status_code=404, detail=f"Image not found: {request.image_name}")
 
@@ -222,6 +242,8 @@ async def create_job(job_request: JobRequest):
             message=f"Job created with {len(job_request.tasks)} task(s)"
         )
 
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error creating job: {e}")
         raise HTTPException(status_code=500, detail=str(e))

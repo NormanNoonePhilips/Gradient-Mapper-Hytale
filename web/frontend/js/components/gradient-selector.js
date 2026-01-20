@@ -3,6 +3,7 @@
  */
 
 import { api } from '../api.js';
+import { escapeHtml } from '../utils/escape.js';
 
 export class GradientSelector {
     constructor(selector) {
@@ -27,10 +28,9 @@ export class GradientSelector {
             this.gradients = await api.listGradients();
             this.render();
         } catch (error) {
-            console.error('Error loading gradients:', error);
             this.container.innerHTML = `
                 <h2 class="text-xl font-semibold mb-4 text-gray-900">Select Gradient</h2>
-                <p class="text-red-500 text-sm">Error loading gradients: ${error.message}</p>
+                <p class="text-red-500 text-sm">Error loading gradients: ${escapeHtml(error.message)}</p>
             `;
         }
     }
@@ -63,8 +63,8 @@ export class GradientSelector {
     renderCategories() {
         return Object.entries(this.gradients.categories)
             .map(([category, gradients]) => `
-                <option value="${category}" ${this.selectedCategory === category ? 'selected' : ''}>
-                    ${category.replace(/_/g, ' ')} (${gradients.length})
+                <option value="${escapeHtml(category)}" ${this.selectedCategory === category ? 'selected' : ''}>
+                    ${escapeHtml(category.replace(/_/g, ' '))} (${gradients.length})
                 </option>
             `)
             .join('');
@@ -94,7 +94,7 @@ export class GradientSelector {
                 <div class="mb-4">
                     ${!this.selectedCategory ? `
                         <h3 class="text-sm font-semibold text-gray-700 mb-2">
-                            ${category.replace(/_/g, ' ')}
+                            ${escapeHtml(category.replace(/_/g, ' '))}
                         </h3>
                     ` : ''}
                     <div class="space-y-2">
@@ -110,12 +110,12 @@ export class GradientSelector {
 
         return `
             <div class="gradient-item p-2 rounded border ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'} cursor-pointer transition"
-                data-gradient-path="${gradient.relative_path}"
-                data-gradient-name="${gradient.name}">
+                data-gradient-path="${escapeHtml(gradient.relative_path)}"
+                data-gradient-name="${escapeHtml(gradient.name)}">
                 <div class="flex items-center">
                     <div class="flex-1 mr-2">
                         <img src="${gradient.thumbnail}"
-                            alt="${gradient.name}"
+                            alt="${escapeHtml(gradient.name)}"
                             class="gradient-thumbnail w-full ${isSelected ? 'selected' : ''}"
                             style="height: 20px;">
                     </div>
@@ -125,7 +125,7 @@ export class GradientSelector {
                         </svg>
                     ` : ''}
                 </div>
-                <p class="text-xs text-gray-600 mt-1 truncate">${gradient.name}</p>
+                <p class="text-xs text-gray-600 mt-1 truncate">${escapeHtml(gradient.name)}</p>
             </div>
         `;
     }
