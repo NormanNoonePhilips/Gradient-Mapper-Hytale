@@ -342,6 +342,15 @@ export class PreviewComponent {
     async updatePreview(imageName, gradientData) {
         this.currentImage = imageName;
         this.currentGradient = gradientData;
+        if (!this.currentImage || !this.currentGradient) {
+            this.previewData = null;
+            this.gridPreviews = [];
+            this.gridLoading = false;
+            this.gridError = null;
+            this.isGenerating = false;
+            this.render();
+            return;
+        }
         if (this.mode === 'grid') {
             this.previewData = null;
             this.isGenerating = false;

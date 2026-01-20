@@ -13,6 +13,7 @@ class GradientMapperApp {
     constructor() {
         this.state = {
             selectedImage: null,
+            selectedImages: [],
             selectedGradient: null
         };
 
@@ -32,7 +33,13 @@ class GradientMapperApp {
 
     attachEventListeners() {
         document.addEventListener('image-selected', (e) => {
-            this.state.selectedImage = e.detail;
+            if (typeof e.detail === 'string') {
+                this.state.selectedImage = e.detail;
+                this.state.selectedImages = [e.detail];
+            } else {
+                this.state.selectedImage = e.detail.primary || null;
+                this.state.selectedImages = e.detail.selected || [];
+            }
             this.updatePreview();
         });
 
@@ -42,7 +49,15 @@ class GradientMapperApp {
         });
 
         document.addEventListener('add-to-queue', (e) => {
-            this.queue.addToQueue(e.detail);
+            const images = this.state.selectedImages.length
+                ? this.state.selectedImages
+                : [e.detail.image_name];
+            images.forEach(image => {
+                this.queue.addToQueue({
+                    image_name: image,
+                    gradient_path: e.detail.gradient_path
+                });
+            });
         });
 
         document.addEventListener('job-created', (e) => {

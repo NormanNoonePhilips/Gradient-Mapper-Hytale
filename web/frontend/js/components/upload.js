@@ -8,6 +8,7 @@ export class UploadComponent {
     constructor(selector) {
         this.container = document.querySelector(selector);
         this.files = [];
+        this.selectedImages = [];
         this.selectedImage = null;
         this.render();
     }
@@ -90,7 +91,10 @@ export class UploadComponent {
             this.renderFileList();
 
             if (this.files.length > 0) {
-                this.selectImage(this.files[0].filename);
+                this.selectedImages = [this.files[0].filename];
+                this.selectedImage = this.files[0].filename;
+                this.renderFileList();
+                this.dispatchSelection();
             }
 
             this.showMessage(`Successfully uploaded ${this.files.length} file(s)`, 'success');
@@ -111,20 +115,28 @@ export class UploadComponent {
             return;
         }
 
-        const filesHtml = this.files.map(file => `
-            <div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer ${file.filename === this.selectedImage ? 'bg-blue-50 border-l-4 border-blue-500' : ''}"
-                data-filename="${file.filename}">
-                <div class="flex-1">
-                    <p class="text-sm font-medium text-gray-900">${file.filename}</p>
-                    <p class="text-xs text-gray-500">${this.formatFileSize(file.size)} • ${file.dimensions[0]}×${file.dimensions[1]}</p>
+        const filesHtml = this.files.map(file => {
+            const isSelected = this.selectedImages.includes(file.filename);
+            const isPrimary = file.filename === this.selectedImage;
+            return `
+                <div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer ${isSelected ? 'bg-blue-50 border-l-4 border-blue-500' : ''}"
+                    data-filename="${file.filename}">
+                    <div class="flex items-center gap-2 flex-1 min-w-0">
+                        <input type="checkbox" class="h-4 w-4 text-blue-600"
+                            data-filename="${file.filename}" ${isSelected ? 'checked' : ''}>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-gray-900 truncate">${file.filename}</p>
+                            <p class="text-xs text-gray-500">${this.formatFileSize(file.size)} • ${file.dimensions[0]}×${file.dimensions[1]}</p>
+                        </div>
+                    </div>
+                    ${isPrimary ? `
+                        <svg class="h-5 w-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                        </svg>
+                    ` : ''}
                 </div>
-                ${file.filename === this.selectedImage ? `
-                    <svg class="h-5 w-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                    </svg>
-                ` : ''}
-            </div>
-        `).join('');
+            `;
+        }).join('');
 
         fileListContainer.innerHTML = `
             <div class="space-y-1 max-h-64 overflow-y-auto custom-scrollbar">
@@ -133,18 +145,52 @@ export class UploadComponent {
         `;
 
         fileListContainer.querySelectorAll('[data-filename]').forEach(item => {
-            item.addEventListener('click', () => {
-                this.selectImage(item.dataset.filename);
+            item.addEventListener('click', (event) => {
+                if (event.target.matches('input[type="checkbox"]')) {
+                    return;
+                }
+                this.setPrimaryImage(item.dataset.filename);
+            });
+        });
+
+        fileListContainer.querySelectorAll('input[type="checkbox"]').forEach(input => {
+            input.addEventListener('change', (event) => {
+                event.stopPropagation();
+                this.toggleImageSelection(input.dataset.filename);
             });
         });
     }
 
-    selectImage(filename) {
+    setPrimaryImage(filename) {
+        if (!this.selectedImages.includes(filename)) {
+            this.selectedImages.push(filename);
+        }
         this.selectedImage = filename;
         this.renderFileList();
+        this.dispatchSelection();
+    }
 
+    toggleImageSelection(filename) {
+        const index = this.selectedImages.indexOf(filename);
+        if (index === -1) {
+            this.selectedImages.push(filename);
+            this.selectedImage = filename;
+        } else {
+            this.selectedImages.splice(index, 1);
+            if (this.selectedImage === filename) {
+                this.selectedImage = this.selectedImages[0] || null;
+            }
+        }
+        this.renderFileList();
+        this.dispatchSelection();
+    }
+
+    dispatchSelection() {
         document.dispatchEvent(new CustomEvent('image-selected', {
-            detail: filename
+            detail: {
+                primary: this.selectedImage,
+                selected: [...this.selectedImages]
+            }
         }));
     }
 
