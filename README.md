@@ -1,16 +1,18 @@
 # Gradient Mapper
 
-A Python tool for applying gradient maps to images with parallel processing support. Transform your images by mapping their luminance values to color gradients.
+A Python tool for applying gradient maps to images with parallel processing support and a web interface. Transform your images by mapping their luminance values to color gradients.
 
 ## Features
 
 - Apply gradient maps to single or multiple images
 - Batch process entire folders
 - Parallel processing for improved performance
+- Web UI with real-time preview and batch processing
 - Support for multiple image formats (PNG, JPEG, WebP)
 - Preserve alpha channel transparency
 - Customizable output quality and format
 - Flexible file naming options
+- WebSocket-based progress tracking
 
 ## Requirements
 
@@ -27,42 +29,56 @@ A Python tool for applying gradient maps to images with parallel processing supp
 uv sync
 ```
 
-Run the CLI without activating a venv:
-
-```bash
-uv run python gradient_mapper.py [all] [all]
-```
-
 ## Folder Structure
 
 ```
 gradient_mapper/
-├── LICENSE.md
+├── LICENSE
 ├── README.md
 ├── gradient_mapper.py
 ├── pyproject.toml
 ├── Dockerfile
 ├── docker-compose.yml
-├── lib/            # Shared core library
-├── web/            # FastAPI backend + static frontend
-├── input/          # Place your source images here (subfolders supported)
-├── gradient/       # Place your gradient maps here (subfolders supported)
-└── output/         # Generated images will be saved here
+├── lib/                # Shared core library
+│   ├── __init__.py
+│   ├── core.py         # Core gradient mapping functions
+│   ├── files.py        # File system operations
+│   ├── batch.py        # Batch processing coordinator
+│   └── preview.py      # Preview generation
+├── web/                # FastAPI backend + static frontend
+│   ├── __init__.py
+│   ├── backend/
+│   │   ├── __init__.py
+│   │   ├── main.py     # FastAPI application
+│   │   ├── api/        # REST API and WebSocket routes
+│   │   ├── models/     # Pydantic schemas
+│   │   └── services/   # Business logic services
+│   └── frontend/       # Static HTML/CSS/JS
+│       ├── index.html
+│       ├── css/
+│       └── js/
+├── input/              # Place source images here
+├── gradient/           # Place gradient maps here
+└── output/             # Generated images saved here
 ```
-
-- `input/` - Source images to be processed (searches recursively in subfolders)
-- `gradient/` - Gradient map images (will be resized to 256x1 automatically, searches recursively in subfolders)
-- `output/` - Output directory for processed images (created automatically)
 
 ## Usage
 
-### Basic Syntax
+### Command Line Interface
+
+Run the CLI without activating a virtual environment:
+
+```bash
+uv run python gradient_mapper.py [input] [gradient] [options]
+```
+
+#### Basic Syntax
 
 ```bash
 python gradient_mapper.py <input> <gradient> [options]
 ```
 
-### Arguments
+#### Arguments
 
 **Positional Arguments:**
 - `input` - Input image filename or `[all]` to process all images in the input folder
@@ -77,33 +93,33 @@ python gradient_mapper.py <input> <gradient> [options]
 - `--suffix` - Add suffix to output filenames
 - `--sequential` - Disable parallel processing (same as -w 1)
 
-## Examples
+#### Examples
 
-### Process a single image with a single gradient
+Process a single image with a single gradient:
 
 ```bash
 python gradient_mapper.py photo.png sunset_gradient.png
 ```
 
-### Process all images with one gradient
+Process all images with one gradient:
 
 ```bash
 python gradient_mapper.py [all] cold_blues.png
 ```
 
-### Process one image with all gradients
+Process one image with all gradients:
 
 ```bash
 python gradient_mapper.py portrait.jpg [all]
 ```
 
-### Process all images with all gradients
+Process all images with all gradients:
 
 ```bash
 python gradient_mapper.py [all] [all]
 ```
 
-### Specify output format and quality
+Specify output format and quality:
 
 ```bash
 python gradient_mapper.py image.png gradient.png -f jpeg -q 90
@@ -113,33 +129,41 @@ python gradient_mapper.py image.png gradient.png -f jpeg -q 90
 python gradient_mapper.py photo.png warm_tones.png --format webp --quality 85
 ```
 
-### Use parallel processing with 4 workers
+Use parallel processing with 4 workers:
 
 ```bash
 python gradient_mapper.py [all] gradient.png -w 4
 ```
 
-### Custom output folder with naming options
+Custom output folder with naming options:
 
 ```bash
 python gradient_mapper.py [all] [all] -o custom_output --prefix processed --suffix v1
 ```
 
-### Sequential processing (no parallel workers)
+Sequential processing (no parallel workers):
 
 ```bash
 python gradient_mapper.py image.png gradient.png --sequential
 ```
 
-## Web UI (FastAPI)
+### Web UI
 
-Run the web app with live reload:
+Run the web application with live reload:
 
 ```bash
 uv run uvicorn web.backend.main:app --reload
 ```
 
 Open `http://localhost:8000` in your browser.
+
+The web UI provides:
+- Drag and drop image upload
+- Real-time preview with side-by-side, slider, and grid comparison modes
+- Gradient selector with categories and search
+- Batch queue for processing multiple combinations
+- WebSocket-based progress tracking
+- Download results as ZIP file
 
 ## Docker
 
@@ -208,6 +232,53 @@ The tool uses parallel processing by default, utilizing all available CPU cores.
 
 Note: When outputting to JPEG, transparency is removed and the image is converted to RGB.
 
+## API Documentation
+
+When running the web application, visit `http://localhost:8000/docs` for interactive API documentation.
+
+### REST API Endpoints
+
+- `GET /api/gradients` - List all available gradients
+- `POST /api/upload` - Upload images
+- `GET /api/images` - List uploaded images
+- `GET /api/images/{path}` - Get a specific image
+- `POST /api/preview` - Generate preview
+- `POST /api/jobs` - Create batch processing job
+- `GET /api/jobs/{job_id}` - Get job status
+- `GET /api/jobs/{job_id}/download` - Download results
+- `DELETE /api/jobs/{job_id}` - Cancel job
+
+### WebSocket
+
+Connect to `/ws` for real-time progress updates. Send a subscribe message:
+
+```json
+{
+  "type": "subscribe",
+  "job_id": "your-job-id"
+}
+```
+
+Receive progress updates:
+
+```json
+{
+  "type": "progress",
+  "job_id": "your-job-id",
+  "current": 5,
+  "total": 10,
+  "status": "processing",
+  "message": "Processing image 5 of 10"
+}
+```
+
+## Environment Variables
+
+For the web application:
+
+- `CORS_ALLOW_ORIGINS` - Comma-separated list of allowed origins (default: `http://localhost:8000,http://127.0.0.1:8000`)
+- `CORS_ALLOW_CREDENTIALS` - Allow credentials in CORS requests (default: false)
+
 ## License
 
-MIT License. See LICENSE.md for details.
+MIT License. See LICENSE file for details.
